@@ -31,4 +31,62 @@ impl server::Handler for Client {
         reply.accept().await;
         Ok(())
     }
+
+    // 터미널 사용요청 수락
+    async fn pty_request(
+        &mut self,
+        channel: russh::ChannelId,
+        _term: &str,
+        _col_width: u32,
+        _row_height: u32,
+        _pix_width: u32,
+        _pix_height: u32,
+        _modes: &[(russh::Pty, u32)],
+        session: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        session.channel_success(channel)?;
+        Ok(())
+    }
+
+    // 채팅 시작화면 출력
+    async fn shell_request(
+        &mut self,
+        channel: russh::ChannelId,
+        session: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        session.channel_success(channel)?;
+
+        let welcome = concat!("\r\n", "==== 채팅방에 오신걸 환영합니다", "\r\n");
+        session.data(channel, welcome.as_bytes())?;
+        Ok(())
+    }
+
+    // 사용자 데이터 보내주기
+    async fn data(
+        &mut self,
+        channel: russh::ChannelId,
+        data: &[u8],
+        session: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        //Ctrl + c or Ctrl + D
+        if data.contains(&3) || data.contains(&4) {
+            session.data(channel, "\r\n 연결을 종료합니다".as_bytes())?;
+            session.exit_status_request(channel, 0)?;
+            session.eof(channel)?;
+            session.close(channel)?;
+            return Ok(());
+        }
+
+        let mut output = Vec::new();
+
+        for &byte in data {
+            match byte {
+                b'\r' => output.extend_from_slice(b"\r\n> "),
+                _ => output.push(byte),
+            }
+        }
+
+        session.data(channel, output)?;
+        Ok(())
+    }
 }
