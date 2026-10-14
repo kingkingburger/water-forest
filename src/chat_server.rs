@@ -56,7 +56,7 @@ impl server::Handler for Client {
     ) -> Result<(), Self::Error> {
         session.channel_success(channel)?;
 
-        let welcome = concat!("\r\n", "==== 채팅방에 오신걸 환영합니다", "\r\n");
+        let welcome = concat!("\r\n", "===== 채팅방에 오신걸 환영합니다 =====", "\r\n");
         session.data(channel, welcome.as_bytes())?;
         Ok(())
     }
