@@ -21,4 +21,14 @@ impl server::Handler for Client {
         println!("접속 허용: {user}");
         Ok(Auth::Accept)
     }
+
+    async fn channel_open_session(
+        &mut self,
+        _channel: russh::Channel<server::Msg>,
+        reply: server::ChannelOpenHandle,
+        _session: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        reply.accept().await;
+        Ok(())
+    }
 }
