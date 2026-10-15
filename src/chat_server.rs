@@ -102,7 +102,6 @@ impl server::Handler for Client {
             }
         }
 
-        // session.data(channel, output)?;
         self.room.broadcast(output).await;
         Ok(())
     }
