@@ -1,16 +1,31 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use russh::server::{self, Auth};
 
-pub struct ChatServer;
-pub struct Client;
+use crate::room::Room;
+
+pub struct ChatServer {
+    room: Arc<Room>,
+}
+pub struct Client {
+    room: Arc<Room>,
+}
+
+// server::Server는 정해진 trait만 정할 수 있음 그래서 따로 impl 뺏다.
+impl ChatServer {
+    pub fn new(room: Arc<Room>) -> Self {
+        Self { room }
+    }
+}
 
 impl server::Server for ChatServer {
     type Handler = Client;
 
     fn new_client(&mut self, peer: Option<SocketAddr>) -> Client {
         println!("새 연결: {peer:?}");
-        Client
+        Client {
+            room: Arc::clone(&self.room),
+        }
     }
 }
 
@@ -55,6 +70,7 @@ impl server::Handler for Client {
         session: &mut server::Session,
     ) -> Result<(), Self::Error> {
         session.channel_success(channel)?;
+        self.room.join(session.handle(), channel).await;
 
         let welcome = concat!("\r\n", "===== 채팅방에 오신걸 환영합니다 =====", "\r\n");
         session.data(channel, welcome.as_bytes())?;
@@ -86,7 +102,8 @@ impl server::Handler for Client {
             }
         }
 
-        session.data(channel, output)?;
+        // session.data(channel, output)?;
+        self.room.broadcast(output).await;
         Ok(())
     }
 }

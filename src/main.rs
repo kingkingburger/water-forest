@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use russh::server::{self, Server};
 
-use crate::chat_server::ChatServer;
+use crate::{chat_server::ChatServer, room::Room};
 
 mod chat_server;
+mod room;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,7 +14,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    let mut server = ChatServer;
+    let room = Arc::new(Room::new());
+    let mut server = ChatServer::new(room);
 
     server
         .run_on_address(Arc::new(config), ("127.0.0.1", 2222))
