@@ -5,6 +5,7 @@ use russh::server::{self, Server};
 use crate::{chat_server::ChatServer, room::Room};
 
 mod chat_server;
+mod client;
 mod room;
 
 #[tokio::main]
