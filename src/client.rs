@@ -17,6 +17,35 @@ impl Client {
 impl server::Handler for Client {
     type Error = russh::Error;
 
+    // 사용자 데이터 보내주기
+    async fn data(
+        &mut self,
+        channel: russh::ChannelId,
+        data: &[u8],
+        session: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        //Ctrl + c or Ctrl + D
+        if data.contains(&3) || data.contains(&4) {
+            session.data(channel, "\r\n 연결을 종료합니다".as_bytes())?;
+            session.exit_status_request(channel, 0)?;
+            session.eof(channel)?;
+            session.close(channel)?;
+            return Ok(());
+        }
+
+        let mut output = Vec::new();
+
+        for &byte in data {
+            match byte {
+                b'\r' => output.extend_from_slice(b"\r\n> "),
+                _ => output.push(byte),
+            }
+        }
+
+        self.room.broadcast(output).await;
+        Ok(())
+    }
+
     async fn auth_none(&mut self, user: &str) -> Result<Auth, Self::Error> {
         println!("접속 허용: {user}");
         Ok(Auth::Accept)
@@ -59,35 +88,6 @@ impl server::Handler for Client {
 
         let welcome = concat!("\r\n", "===== 채팅방에 오신걸 환영합니다 =====", "\r\n");
         session.data(channel, welcome.as_bytes())?;
-        Ok(())
-    }
-
-    // 사용자 데이터 보내주기
-    async fn data(
-        &mut self,
-        channel: russh::ChannelId,
-        data: &[u8],
-        session: &mut server::Session,
-    ) -> Result<(), Self::Error> {
-        //Ctrl + c or Ctrl + D
-        if data.contains(&3) || data.contains(&4) {
-            session.data(channel, "\r\n 연결을 종료합니다".as_bytes())?;
-            session.exit_status_request(channel, 0)?;
-            session.eof(channel)?;
-            session.close(channel)?;
-            return Ok(());
-        }
-
-        let mut output = Vec::new();
-
-        for &byte in data {
-            match byte {
-                b'\r' => output.extend_from_slice(b"\r\n> "),
-                _ => output.push(byte),
-            }
-        }
-
-        self.room.broadcast(output).await;
         Ok(())
     }
 }
