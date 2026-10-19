@@ -46,7 +46,11 @@ impl server::Handler for Client {
 
                     self.room.broadcast(message).await;
                 }
-                _ => self.input_buffer.push(byte),
+                _ => {
+                    // 자기 자신에게 보내기
+                    session.data(channel, vec![byte])?;
+                    self.input_buffer.push(byte);
+                }
             }
         }
 
