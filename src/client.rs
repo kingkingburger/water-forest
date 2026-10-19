@@ -6,18 +6,22 @@ use crate::room::Room;
 
 pub struct Client {
     room: Arc<Room>,
+    input_buffer: Vec<u8>,
 }
 
 impl Client {
     pub fn new(room: Arc<Room>) -> Self {
-        Self { room }
+        Self {
+            room,
+            input_buffer: Vec::new(),
+        }
     }
 }
 
 impl server::Handler for Client {
     type Error = russh::Error;
 
-    // 사용자 데이터 보내주기
+    // 사용자 데이터 보내주기, 데이터 수신될 때 마다 호출
     async fn data(
         &mut self,
         channel: russh::ChannelId,
@@ -33,16 +37,19 @@ impl server::Handler for Client {
             return Ok(());
         }
 
-        let mut output = Vec::new();
-
+        // 채팅 모으기, 발송
         for &byte in data {
             match byte {
-                b'\r' => output.extend_from_slice(b"\r\n> "),
-                _ => output.push(byte),
+                b'\r' => {
+                    let mut message = std::mem::take(&mut self.input_buffer);
+                    message.extend_from_slice(b"\r\n> ");
+
+                    self.room.broadcast(message).await;
+                }
+                _ => self.input_buffer.push(byte),
             }
         }
 
-        self.room.broadcast(output).await;
         Ok(())
     }
 
