@@ -1,10 +1,16 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 
 use russh::server::{self, Auth};
 
 use crate::room::Room;
 
+static NEXT_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
+
 pub struct Client {
+    id: u64,
     room: Arc<Room>,
     input_buffer: Vec<u8>,
 }
@@ -12,6 +18,7 @@ pub struct Client {
 impl Client {
     pub fn new(room: Arc<Room>) -> Self {
         Self {
+            id: NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed),
             room,
             input_buffer: Vec::new(),
         }
@@ -44,7 +51,8 @@ impl server::Handler for Client {
                     let mut message = std::mem::take(&mut self.input_buffer);
                     message.extend_from_slice(b"\r\n> ");
 
-                    self.room.broadcast(message).await;
+                    session.data(channel, b"\r\n".to_vec())?;
+                    self.room.broadcast(self.id, message).await;
                 }
                 _ => {
                     // 자기 자신에게 보내기
@@ -95,7 +103,7 @@ impl server::Handler for Client {
         session: &mut server::Session,
     ) -> Result<(), Self::Error> {
         session.channel_success(channel)?;
-        self.room.join(session.handle(), channel).await;
+        self.room.join(self.id, session.handle(), channel).await;
 
         let welcome = concat!("\r\n", "===== 채팅방에 오신걸 환영합니다 =====", "\r\n");
         session.data(channel, welcome.as_bytes())?;
