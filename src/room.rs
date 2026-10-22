@@ -36,6 +36,7 @@ impl Room {
         };
 
         for member in members {
+            // 자기 자신은 제외
             if sender_id == member.client_id {
                 continue;
             }

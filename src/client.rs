@@ -51,6 +51,7 @@ impl server::Handler for Client {
                     let mut message = std::mem::take(&mut self.input_buffer);
                     message.extend_from_slice(b"\r\n> ");
 
+                    // 채널에 데이터 보내기
                     session.data(channel, b"\r\n".to_vec())?;
                     self.room.broadcast(self.id, message).await;
                 }
